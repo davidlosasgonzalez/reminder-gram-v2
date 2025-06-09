@@ -10,13 +10,20 @@
         "module": "commonjs",
         "outDir": "./dist",
         "paths": {
-            "@/*": ["src/*"]
+            "@calendar/*": ["libs/calendar/src/*"],
+            "@config/*": ["libs/config/src/*"],
+            "@llm/*": ["libs/llm/src/*"],
+            "@scheduler/*": ["libs/scheduler/src/*"],
+            "@shared/*": ["libs/shared/src/*"],
+            "@telegram/*": ["libs/telegram/src/*"],
+            "@telegram-bot/*": ["apps/telegram-bot/src/*"]
         },
         "removeComments": true,
         "rootDir": "./",
         "skipLibCheck": true,
         "sourceMap": true,
         "strictNullChecks": true,
-        "target": "ES2024",
-    }
+        "target": "ES2024"
+    },
+    "include": ["apps", "libs", "test"]
 }

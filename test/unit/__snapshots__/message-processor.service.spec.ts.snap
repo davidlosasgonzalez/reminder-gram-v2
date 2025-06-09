@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MessageProcessorService should return a message indicating there are no upcoming events when type is "LIST_EVENTS" 1`] = `"No upcoming events."`;
+
+exports[`MessageProcessorService should return the rendered list of events when type is "LIST_EVENTS" and events exist 1`] = `
+"💠 Project Kickoff
+📆 7/6/2025, 12:00:00 - 7/6/2025, 13:00:00
+📍 Meeting Room A
+
+💠 1:1 with Sarah
+📆 8/6/2025, 11:00:00 - 8/6/2025, 11:30:00
+📍 Zoom
+
+💠 Tech Talk
+📆 9/6/2025, 17:00:00 - 9/6/2025, 18:00:00"
+`;
