@@ -25,5 +25,5 @@
         "strictNullChecks": true,
         "target": "ES2024"
     },
-    "include": ["apps", "libs", "test"]
+    "include": ["apps", "libs", "test", "scripts"]
 }
