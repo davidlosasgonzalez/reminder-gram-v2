@@ -1,8 +1,23 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`MessageProcessorService should return a message indicating there are no upcoming events when type is "LIST_EVENTS" 1`] = `"No upcoming events."`;
+exports[`MessageProcessorService should handle clarification flow and clear context after clarify() 1`] = `
+"💠 Project Kickoff
+📆 7/6/2025, 12:00:00 - 7/6/2025, 13:00:00
+📍 Meeting Room A
 
-exports[`MessageProcessorService should return the rendered list of events when type is "LIST_EVENTS" and events exist 1`] = `
+💠 1:1 with Sarah
+📆 8/6/2025, 11:00:00 - 8/6/2025, 11:30:00
+📍 Zoom
+
+💠 Tech Talk
+📆 9/6/2025, 17:00:00 - 9/6/2025, 18:00:00"
+`;
+
+exports[`MessageProcessorService should handle failed clarification by returning fallback and clearing context 1`] = `"🤖 I didn’t understand your request. / No entendí tu mensaje. Solo puedo ayudarte a listar eventos."`;
+
+exports[`MessageProcessorService should return no-events message if LLM detects LIST_EVENTS but no events exist 1`] = `"No upcoming events."`;
+
+exports[`MessageProcessorService should return rendered events if LLM detects LIST_EVENTS and events exist 1`] = `
 "💠 Project Kickoff
 📆 7/6/2025, 12:00:00 - 7/6/2025, 13:00:00
 📍 Meeting Room A

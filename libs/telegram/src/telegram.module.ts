@@ -9,11 +9,17 @@ import { Module } from '@nestjs/common';
 import { LoggerService } from '@shared/infrastructure/logger/logger.service';
 import { GlobalValidationPipe } from '@shared/pipes/global-validation.pipe';
 
+import { ClarificationContextService } from './application/services/clarification-context.service';
 import { MessageProcessorService } from './presentation/services/message-processor.service';
 
 @Module({
     imports: [CalendarModule, LlmModule],
-    providers: [LoggerService, GlobalValidationPipe, MessageProcessorService],
+    providers: [
+        LoggerService,
+        GlobalValidationPipe,
+        MessageProcessorService,
+        ClarificationContextService,
+    ],
     exports: [MessageProcessorService],
 })
 export class TelegramModule {}

@@ -7,27 +7,23 @@
 
 import { env } from '@config/env/env.config';
 import { NestFactory } from '@nestjs/core';
-import { LoggerService } from '@shared/infrastructure/logger/logger.service';
 import { MessageProcessorService } from '@telegram/presentation/services/message-processor.service';
 import { AppModule } from '@telegram-bot/app.module';
-import { Telegraf } from 'telegraf';
+import { Context, Telegraf } from 'telegraf';
+import { Message, Update } from 'telegraf/typings/core/types/typegram';
 
-/**
- * Bootstraps the ReminderGram bot application, sets up the Telegraf bot,
- * injects required dependencies, configures language detection, and starts listening for messages.
- * Registers global handlers for uncaught exceptions and unhandled promise rejections.
- *
- * @returns {Promise<void>} Resolves when the bot is successfully launched.
- */
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule);
     const messageProcessor = app.get(MessageProcessorService);
 
     const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN);
 
-    bot.hears(/.*/, async (ctx) => {
-        const message = await messageProcessor.process(ctx.message);
-        await ctx.reply(message);
+    bot.hears(/.*/, async (ctx: Context<Update>) => {
+        const message = ctx.message as Message.TextMessage | undefined;
+        if (!message) return;
+
+        const reply = await messageProcessor.execute(message);
+        await ctx.reply(reply);
     });
 
     console.log('ReminderGram Bot started and listening on Telegram!');

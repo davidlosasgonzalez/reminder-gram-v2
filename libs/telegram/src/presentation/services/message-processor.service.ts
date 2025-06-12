@@ -1,76 +1,162 @@
 /**
- * @file libs/telegram/src/presentation/services/message-processor.service.ts
+ * @file /libs/telegram/src/presentation/services/message-processor.service.ts
  * @description Service for processing incoming Telegram messages.
  * Acts as the entrypoint for all Telegram message and event handling.
  */
 
 import { ListCalendarEventsHandler } from '@calendar/application/queries/list-calendar-events/list-calendar-events.handler';
 import { ListCalendarEventsQuery } from '@calendar/application/queries/list-calendar-events/list-calendar-events.query';
-import { EvaluateListEventsService } from '@llm/application/services/evaluate-list-events.service';
+import { EvaluateMessageIntentService } from '@llm/application/services/evaluate-message-intent.service';
+import { LLM_EVALUATED_INTENT } from '@llm/domain/enums/llm-evaluated-intent.enum';
 import { Injectable } from '@nestjs/common';
 import { LoggerService } from '@shared/infrastructure/logger/logger.service';
-import { GlobalValidationPipe } from '@shared/pipes/global-validation.pipe';
 import { TelegramMessageDto } from '@telegram/application/dto/telegram-message.dto';
+import { ClarificationContextService } from '@telegram/application/services/clarification-context.service';
 import { renderCalendarEvents } from '@telegram/application/utils/render-calendar-events.util';
+import { Message } from 'telegraf/typings/core/types/typegram';
 
 @Injectable()
 export class MessageProcessorService {
     constructor(
         private readonly logger: LoggerService,
-        private readonly validator: GlobalValidationPipe,
-        private readonly evaluateListEvents: EvaluateListEventsService,
+        private readonly evaluateMessageIntent: EvaluateMessageIntentService,
         private readonly listCalendarEventsHandler: ListCalendarEventsHandler,
+        private readonly clarificationContext: ClarificationContextService,
     ) {}
 
     /**
-     * Processes an incoming Telegram message, validates it, determines intent,
+     * Processes an incoming Telegram message, determines intent,
      * and returns the appropriate assistant reply.
-     * If the message is relevant and requests event listing, fetches events and composes the response.
-     * @param payload Raw payload or message received from Telegram.
+     * @param payload Raw Telegram message of type TextMessage.
      * @returns Assistant reply string, ready to be sent to the user.
      */
-    async process(payload: unknown): Promise<string> {
+    async execute(payload: Message.TextMessage): Promise<string> {
+        const { text, message_id, from } = payload;
+
+        if (!text || !message_id || !from?.id) {
+            this.logger.warn('Missing fields in Telegram payload', { payload });
+            return '⚠️ Invalid Telegram payload. / Mensaje de Telegram inválido.';
+        }
+
+        const dto: TelegramMessageDto = {
+            text,
+            message_id,
+            from,
+        };
+
+        const trimmedText = dto.text.trim();
+        const userId = dto.from.id;
+        const messageId = dto.message_id;
+
+        const context = this.clarificationContext.getContext(userId);
+
         try {
-            const dto = (await this.validator.transform(payload, {
-                metatype: TelegramMessageDto,
-                type: 'body',
-            })) as TelegramMessageDto;
+            let evaluation;
 
-            this.logger.info('[MessageProcessorService] Message validated', {
-                text: dto.text,
-            });
-
-            const evaluation = await this.evaluateListEvents.evaluateMessage(
-                dto.text,
-            );
-
-            if (evaluation.relevant && evaluation.type === 'LIST_EVENTS') {
-                const now = new Date();
-                const oneWeekLater = new Date();
-                oneWeekLater.setDate(now.getDate() + 7);
-
-                const events = await this.listCalendarEventsHandler.execute(
-                    new ListCalendarEventsQuery(now, oneWeekLater),
+            // Clarification pending.
+            if (context) {
+                this.logger.info(
+                    '[MessageProcessorService] Clarify flow triggered',
+                    {
+                        userId,
+                        originalMessage: context.originalMessage,
+                        clarificationMessage: trimmedText,
+                    },
                 );
 
-                const eventListText = renderCalendarEvents(events);
+                evaluation = await this.evaluateMessageIntent.clarify(
+                    context.originalMessage,
+                    context.initialLlmResponse,
+                    trimmedText,
+                );
 
-                return eventListText;
+                this.clarificationContext.clearContext(userId);
+            } else {
+                // Clarification not pending.
+                evaluation =
+                    await this.evaluateMessageIntent.classify(trimmedText);
             }
 
-            if ('messages' in evaluation && evaluation.messages.llm) {
+            // LIST_EVENTS
+            if (evaluation.type === LLM_EVALUATED_INTENT.LIST_EVENTS) {
+                const [from, to] = this.getDefaultDateRange();
+                const events = await this.listCalendarEventsHandler.execute(
+                    new ListCalendarEventsQuery(from, to),
+                );
+
+                return renderCalendarEvents(events);
+            }
+
+            // NEEDS_CLARIFICATION
+            if (evaluation.type === LLM_EVALUATED_INTENT.NEEDS_CLARIFICATION) {
+                this.logger.info(
+                    '[MessageProcessorService] Clarification requested by model',
+                    {
+                        userId,
+                        originalMessage: trimmedText,
+                        suggested: evaluation.messages?.llm ?? 'N/A',
+                    },
+                );
+
+                this.clarificationContext.saveContext(userId, {
+                    lastMessageId: messageId,
+                    originalMessage: trimmedText,
+                    initialLlmResponse: evaluation.messages?.llm ?? '',
+                });
+
+                return (
+                    evaluation.messages?.llm ??
+                    '🤖 I need clarification to proceed. / Necesito que aclares tu mensaje para poder ayudarte.'
+                );
+            }
+
+            if (context && evaluation.type === LLM_EVALUATED_INTENT.UNKNOWN) {
+                this.logger.info(
+                    '[MessageProcessorService] Clarification failed',
+                    {
+                        userId,
+                        messageId,
+                    },
+                );
+
+                return (
+                    evaluation.messages?.llm ??
+                    '🤖 I didn’t understand your request. / No entendí tu mensaje. Solo puedo ayudarte a listar eventos.'
+                );
+            }
+
+            if (evaluation.messages?.llm) {
                 return evaluation.messages.llm;
             }
 
-            return '⚠️ Unknown error / Error desconocido';
-        } catch (err) {
             this.logger.warn(
-                '[MessageProcessorService] Invalid Telegram message',
+                '[MessageProcessorService] No message returned from evaluation',
                 {
-                    error: (err as Error).message,
+                    type: evaluation.type,
+                    userId,
+                    evaluation,
                 },
             );
-            return '⚠️ Invalid message / Mensaje inválido';
+
+            return '⚠️ Unexpected error occurred. / Ocurrió un error inesperado.';
+        } catch (err) {
+            this.logger.error(
+                '[MessageProcessorService] Message processing failed',
+                (err as Error).stack,
+                { error: (err as Error).message },
+            );
+            return '⚠️ Invalid Telegram message. / Mensaje de Telegram no válido.';
         }
+    }
+
+    /**
+     * Returns the default date range to fetch upcoming events.
+     * The range starts from the current date and includes the next 14 days.
+     */
+    private getDefaultDateRange(): [Date, Date] {
+        const now = new Date();
+        const twoWeeksLater = new Date();
+        twoWeeksLater.setDate(now.getDate() + 14);
+        return [now, twoWeeksLater];
     }
 }
