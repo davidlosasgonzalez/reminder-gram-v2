@@ -1,3 +1,8 @@
+/**
+ * @file events.mock.ts
+ * @description Static list of mocked calendar events used for testing event listing scenarios in the application.
+ */
+
 import { CalendarEventDto } from '@calendar/application/dto/calendar-event.dto';
 
 export const eventsMock: CalendarEventDto[] = [

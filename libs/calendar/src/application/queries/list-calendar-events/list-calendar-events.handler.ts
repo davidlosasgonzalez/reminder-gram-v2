@@ -29,26 +29,22 @@ export class ListCalendarEventsHandler {
      */
     async execute(query: ListCalendarEventsQuery): Promise<CalendarEventDto[]> {
         try {
-            this.logger.info('[ListCalendarEventsHandler] Fetching events', {
-                start: query.start,
-                end: query.end,
-            });
             return await this.calendarProvider.listEvents(
                 query.start,
                 query.end,
             );
-        } catch (error) {
+        } catch (err) {
             this.logger.error(
                 '[ListCalendarEventsHandler] Failed to list events',
-                (error as Error).stack,
+                (err as Error).stack,
                 {
                     start: query.start,
                     end: query.end,
-                    error: (error as Error).message,
+                    error: (err as Error).message,
                 },
             );
             throw new CalendarEventsUnavailableException(
-                `Could not retrieve events from provider: ${(error as Error).message}`,
+                `Could not retrieve events from provider: ${(err as Error).message}`,
             );
         }
     }

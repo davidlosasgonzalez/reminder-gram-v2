@@ -22,10 +22,13 @@ export class GoogleCalendarProvider implements CalendarProviderPort {
      * Lists events within the given date range from Google Calendar.
      */
     async listEvents(start: Date, end: Date): Promise<CalendarEventDto[]> {
-        this.logger.info('[GoogleCalendarProvider] Listing events', {
-            start,
-            end,
-        });
+        this.logger.info(
+            '[GoogleCalendarProvider] Retrieving events from all accounts',
+            {
+                start,
+                end,
+            },
+        );
 
         const tokensDir = path.resolve(process.cwd(), 'private', 'tokens');
         let tokenFiles: string[] = [];
@@ -69,7 +72,7 @@ export class GoogleCalendarProvider implements CalendarProviderPort {
 
                 if (!primary) {
                     this.logger.warn(
-                        '[GoogleCalendarProvider] No primary calendar found',
+                        '[GoogleCalendarProvider] Skipping account: no primary calendar found',
                         { email },
                     );
                     continue;
@@ -84,11 +87,6 @@ export class GoogleCalendarProvider implements CalendarProviderPort {
                         orderBy: 'startTime',
                     });
 
-                this.logger.info('[GoogleCalendarProvider] Events fetched', {
-                    email,
-                    count: items.length,
-                });
-
                 const events: CalendarEventDto[] = items
                     .map((item) =>
                         mapGoogleEventToDto(item, primary.id!, start, end),
@@ -99,6 +97,15 @@ export class GoogleCalendarProvider implements CalendarProviderPort {
                                 event.title.trim().toLowerCase(),
                             ),
                     );
+
+                this.logger.info(
+                    '[GoogleCalendarProvider] Events processing summary',
+                    {
+                        email,
+                        fetched: items.length,
+                        remaining: events.length,
+                    },
+                );
 
                 allEvents.push(...events);
             } catch (err) {
