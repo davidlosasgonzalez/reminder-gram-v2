@@ -3,8 +3,5 @@
         "source.fixAll.eslint": "always",
         "source.organizeImports": "never"
     },
-    "eslint.validate": [
-        "javascript",
-        "typescript"
-    ]
+    "eslint.validate": ["javascript", "typescript"]
 }
