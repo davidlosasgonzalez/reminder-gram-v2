@@ -11,8 +11,8 @@
         "start:dev": "nest start telegram-bot --watch",
         "start:prod": "node dist/apps/telegram-bot/main.js",
         "test": "jest",
-        "test:unit": "cross-env TZ=Europe/Madrid jest --config jest.unit.config.js",
-        "test:integration": "jest --config jest.integration.config.js",
+        "test:unit": "cross-env TZ=UTC jest --config jest.unit.config.js",
+        "test:integration": "cross-env TZ=UTC jest --config jest.integration.config.js",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "lint": "eslint \"{apps,libs,test,scripts}/**/*.{ts,tsx}\" --max-warnings=0"
